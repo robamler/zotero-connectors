@@ -28,6 +28,7 @@ Zotero.Connector_Browser = new function() {
 	var _instanceIDsForTabs = {};
 	var _selectCallbacksForTabIDs = {};
 	var _incompatibleVersionMessageShown;
+	var _dontprintJobIdForTabId = {};
 	
 	/**
 	 * Called when translators are available for a given page
@@ -40,23 +41,36 @@ Zotero.Connector_Browser = new function() {
 		_instanceIDsForTabs[tab.id] = instanceID;
 		var itemType = translators[0].itemType;
 		
-		chrome.pageAction.setIcon({
-			tabId:tab.id,
-			path:(itemType === "multiple"
-					? "images/treesource-collection.png"
-					: Zotero.ItemTypes.getImageSrc(itemType))
-		});
-		
-		var translatorName = translators[0].label;
-		if(translators[0].runMode === Zotero.Translator.RUN_MODE_ZOTERO_STANDALONE) {
-			translatorName += " via Zotero Standalone";
+		if (itemType === "multiple") {
+			chrome.pageAction.hide(tab.id);
+		} else {
+			var jobId = _dontprintJobIdForTabId[tab.id];
+			var popupUrl = "common/progress/popup.html#" + tab.id;
+			var iconFile = "../images/dontprint";
+			var pageActionTitle = "Dontprint this article (send to e-reader)";
+			if (jobId !== undefined) {
+				popupUrl += "|" + jobId;
+				iconFile += "-working";
+				pageActionTitle = "Dontprint in progress (click for details)";
+			}
+
+			chrome.pageAction.setPopup({
+				tabId: tab.id,
+				popup: popupUrl
+			});
+			chrome.pageAction.setIcon({
+				tabId: tab.id,
+				path: {
+					"19": iconFile + "-19px.png",
+					"38": iconFile + "-38px.png"
+				}
+			});
+			chrome.pageAction.setTitle({
+				tabId: tab.id,
+				title: pageActionTitle
+			});
+			chrome.pageAction.show(tab.id);
 		}
-		chrome.pageAction.setTitle({
-			tabId:tab.id,
-			title:"Save to Zotero ("+translatorName+")"
-		});
-		
-		chrome.pageAction.show(tab.id);
 	}
 	
 	/**
@@ -95,16 +109,17 @@ Zotero.Connector_Browser = new function() {
 	 * Called if Zotero version is determined to be incompatible with Standalone
 	 */
 	this.onIncompatibleStandaloneVersion = function(zoteroVersion, standaloneVersion) {
-		if(_incompatibleVersionMessageShown) return;
-		alert('Zotero Connector for Chrome '+zoteroVersion+' is incompatible with the running '+
-			'version of Zotero Standalone'+(standaloneVersion ? " ("+standaloneVersion+")" : "")+
-			'. Zotero Connector will continue to operate, but functionality that relies upon '+
-			'Zotero Standalone may be unavaliable.\n\n'+
-			'Please ensure that you have installed the latest version of these components. See '+
-			'http://www.zotero.org/support/standalone for more details.');
-		_incompatibleVersionMessageShown = true;
+		// ignore
 	}
 	
+	/**
+	 * For Dontprint: Called by the translation system when the metadata of an
+	 * article (including the URLs of its attachments) have been retrieved.
+	 */
+	this.onItemMetadataRetrieved = function(item, tab) {
+		Dontprint.zoteroTranslatorDone(_dontprintJobIdForTabId[tab.id], item);
+	}
+
 	/**
 	 * Removes information about a specific tab
 	 */
@@ -129,14 +144,26 @@ Zotero.Connector_Browser = new function() {
 		chrome.tabs.sendRequest(tabID, ["pageModified"], null);
 	});
 
-	chrome.pageAction.onClicked.addListener(function(tab) {
-		chrome.tabs.sendRequest(tab.id, ["translate",
-				[_instanceIDsForTabs[tab.id], _translatorsForTabIDs[tab.id][0]]], null);
-	});
+	this.dontprintRunZoteroTranslator = function(job) {
+		_dontprintJobIdForTabId[job.tabId] = job.id;
 
-	chrome.contextMenus.create({"title":"Save Page to Zotero", "onclick":function(info, tab) {
-		chrome.tabs.sendRequest(tab.id, ["saveSnapshot"], null);
-	}});
+		chrome.pageAction.setPopup({
+			tabId: job.tabId,
+			popup: "common/progress/popup.html#" + job.tabId + "|" + job.id
+		});
+
+		chrome.tabs.sendRequest(
+			job.tabId,
+			["translate", [_instanceIDsForTabs[job.tabId], _translatorsForTabIDs[job.tabId][0]]],
+			null
+		);
+	};
+
+	this.dontprintJobDone = function(job) {
+		if (_dontprintJobIdForTabId[job.tabId] === job.id) {
+			delete _dontprintJobIdForTabId[job.tabId];
+		}
+	};
 }
 
 Zotero.initGlobal();

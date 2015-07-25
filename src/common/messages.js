@@ -106,7 +106,8 @@ var MESSAGES = {
 		{
 			"onSelect":true,
 			"onPageLoad":false,
-			"onTranslators":false
+			"onTranslators":false,
+			"onItemMetadataRetrieved":false
 		},
 	"Connector_Debug":
 		{
