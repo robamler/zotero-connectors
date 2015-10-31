@@ -45,31 +45,7 @@ Zotero.Connector_Browser = new function() {
 			chrome.pageAction.hide(tab.id);
 		} else {
 			var jobId = _dontprintJobIdForTabId[tab.id];
-			var popupUrl = "common/progress/popup.html#" + tab.id;
-			var iconFile = "../images/dontprint";
-			var pageActionTitle = "Dontprint this article (send to e-reader)";
-			if (jobId !== undefined) {
-				popupUrl += "|" + jobId;
-				iconFile += "-working";
-				pageActionTitle = "Dontprint in progress (click for details)";
-			}
-
-			chrome.pageAction.setPopup({
-				tabId: tab.id,
-				popup: popupUrl
-			});
-			chrome.pageAction.setIcon({
-				tabId: tab.id,
-				path: {
-					"19": iconFile + "-19px.png",
-					"38": iconFile + "-38px.png"
-				}
-			});
-			chrome.pageAction.setTitle({
-				tabId: tab.id,
-				title: pageActionTitle
-			});
-			chrome.pageAction.show(tab.id);
+			showPageAction(tab.id, jobId);
 		}
 	}
 	
@@ -159,11 +135,49 @@ Zotero.Connector_Browser = new function() {
 		);
 	};
 
+	this.dontprintJobStarted = function(job) {
+		if (typeof job.tabId !== "undefined") {
+			showPageAction(job.tabId, job.id);
+		}
+	}
+
 	this.dontprintJobDone = function(job) {
 		if (_dontprintJobIdForTabId[job.tabId] === job.id) {
 			delete _dontprintJobIdForTabId[job.tabId];
+			if (typeof job.tabId !== "undefined") {
+				showPageAction(job.tabId);
+			}
 		}
 	};
+
+
+	function showPageAction(tabId, jobId) {
+		var popupUrl = "common/progress/popup.html#" + tabId;
+		var iconFile = "common/icons/dontprint";
+		var pageActionTitle = "Dontprint this article (send to e-reader)";
+		if (jobId !== undefined) {
+			popupUrl += "|" + jobId;
+			iconFile += "-busy";
+			pageActionTitle = "Dontprint in progress (click for details)";
+		}
+
+		chrome.pageAction.setPopup({
+			tabId: tabId,
+			popup: popupUrl
+		});
+		chrome.pageAction.setIcon({
+			tabId: tabId,
+			path: {
+				"19": iconFile + "-19px.png",
+				"38": iconFile + "-38px.png"
+			}
+		});
+		chrome.pageAction.setTitle({
+			tabId: tabId,
+			title: pageActionTitle
+		});
+		chrome.pageAction.show(tabId);
+	}
 }
 
 Zotero.initGlobal();
