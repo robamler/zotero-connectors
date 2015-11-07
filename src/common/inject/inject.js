@@ -64,14 +64,18 @@ Zotero.Inject = new function() {
 	 * Initializes the translate machinery and determines whether this page can be translated
 	 */
 	this.detect = function(force) {	
-		// On OAuth completion, close window and call completion listener
-		if(document.location.href.substr(0, ZOTERO_CONFIG.OAUTH_CALLBACK_URL.length+1) === ZOTERO_CONFIG.OAUTH_CALLBACK_URL+"?") {
-			Zotero.API.onAuthorizationComplete(document.location.href.substr(ZOTERO_CONFIG.OAUTH_CALLBACK_URL.length+1));
-			return;
-		} /*else if(document.location.href.substr(0, ZOTERO_CONFIG.OAUTH_NEW_KEY_URL.length) === ZOTERO_CONFIG.OAUTH_NEW_KEY_URL) {
-			document.getElementById("submit").click();
-			return;
-		}*/
+		// Check if document is a PDF file
+		try {
+			if (document.body.childElementCount === 1) {
+				var embed = document.body.firstElementChild;
+				if (embed.tagName === "EMBED" && embed.getAttribute("type") === "application/pdf") {
+					Zotero.Connector_Browser.onTranslators("pdfurl", instanceID);
+					return;
+				}
+			}
+		} catch (e) {
+			Zotero.logError(e);
+		}
 		
 		// wrap this in try/catch so that errors will reach logError
 		try {

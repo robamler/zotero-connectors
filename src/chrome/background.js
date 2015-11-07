@@ -34,6 +34,12 @@ Zotero.Connector_Browser = new function() {
 	 * Called when translators are available for a given page
 	 */
 	this.onTranslators = function(translators, instanceID, tab) {
+		if (translators === "pdfurl") {
+			// The document displayed in the tab is a PDF document and the
+			// argument "translators" does not actually reference any translators
+			showPageAction(tab.id, _dontprintJobIdForTabId[tab.id], "pdfurl");
+			return;
+		}
 		var oldTranslators = _translatorsForTabIDs[tab.id];
 		if(oldTranslators && oldTranslators.length
 			&& (!translators.length || oldTranslators[0].priority <= translators[0].priority)) return;
@@ -119,12 +125,14 @@ Zotero.Connector_Browser = new function() {
 		chrome.tabs.sendRequest(tabID, ["pageModified"], null);
 	});
 
-	this.dontprintRunZoteroTranslator = function(job) {
+	this.dontprintRegisterJobId = function(job) {
 		_dontprintJobIdForTabId[job.tabId] = job.id;
+	};
 
+	this.dontprintRunZoteroTranslator = function(job) {
 		chrome.pageAction.setPopup({
 			tabId: job.tabId,
-			popup: "common/progress/popup.html#" + job.tabId + "|" + job.id
+			popup: "common/progress/popup.html#" + job.tabId + "||" + job.id
 		});
 
 		chrome.tabs.sendRequest(
@@ -144,14 +152,17 @@ Zotero.Connector_Browser = new function() {
 		if (_dontprintJobIdForTabId[job.tabId] === job.id) {
 			delete _dontprintJobIdForTabId[job.tabId];
 			if (typeof job.tabId !== "undefined") {
-				showPageAction(job.tabId);
+				showPageAction(job.tabId, undefined, job.jobType);
 			}
 		}
 	};
 
 
-	function showPageAction(tabId, jobId) {
-		var popupUrl = "common/progress/popup.html#" + tabId;
+	function showPageAction(tabId, jobId, jobType) {
+		if (!jobType) {
+			jobType = "page";
+		}
+		var popupUrl = "common/progress/popup.html#" + tabId + "|" + jobType;
 		var iconFile = "common/icons/dontprint";
 		var pageActionTitle = "Dontprint this article (send to e-reader)";
 		if (jobId !== undefined) {
