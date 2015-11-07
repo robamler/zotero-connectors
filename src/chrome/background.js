@@ -39,13 +39,12 @@ Zotero.Connector_Browser = new function() {
 			&& (!translators.length || oldTranslators[0].priority <= translators[0].priority)) return;
 		_translatorsForTabIDs[tab.id] = translators;
 		_instanceIDsForTabs[tab.id] = instanceID;
+
 		var itemType = translators[0].itemType;
-		
-		if (itemType === "multiple") {
-			chrome.pageAction.hide(tab.id);
+		if (itemType && Dontprint.itemTypeBlacklist.indexOf(itemType) === -1) {
+			showPageAction(tab.id, _dontprintJobIdForTabId[tab.id]);
 		} else {
-			var jobId = _dontprintJobIdForTabId[tab.id];
-			showPageAction(tab.id, jobId);
+			chrome.pageAction.hide(tab.id);
 		}
 	}
 	
